@@ -7,6 +7,8 @@ import Main from './../screens/main/Main';
 import DadosPessoais from './../screens/dados-pessoais/DadosPessoais';
 import Visualizar from './../screens/equipamento/Visualizar';
 import Cadastrar from './../screens/equipamento/Cadastrar';
+import Mapa from '../screens/mapa/Mapa';
+import Localizacao from './../screens/localizacao/Localizacao';
 
 const AuthStackNav = createStackNavigator({
 	Login: Login,
@@ -20,7 +22,16 @@ const DadosPessoaisStackNav = createStackNavigator({
 const MainStackNav = createStackNavigator({
 	Main: Main,
 	VisualizarEquipamento: Visualizar,
-	NovoEquipamento: Cadastrar
+	NovoEquipamento: Cadastrar,
+	MapaScreen: Mapa,
+	LocalizacaoScreen: Localizacao
+}, {
+		navigationOptions: {
+			// headerStyle: {
+			// 	backgroundColor: '#8B0000',
+			// 	elevation: null
+			// }
+		}
 });
 
 export default createSwitchNavigator({

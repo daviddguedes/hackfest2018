@@ -31,10 +31,11 @@ export default class Visualizar extends Component {
 	}
 
 	static navigationOptions = ({ navigation }) => {
-		doLogout = async () => {
+		doLogout = () => {
 			try {
-				const logout = await Parse.User.logOut();
-				DeviceEventEmitter.emit('userLoggedOut');
+				Parse.User.logOut().then(() => {
+					DeviceEventEmitter.emit('userLoggedOut');
+				});
 			} catch (error) {
 				alert('Erro ao fazer logout...');
 			}
@@ -43,12 +44,16 @@ export default class Visualizar extends Component {
 		return {
 			headerTitle: <LogoTitle />,
 			headerRight: (
-				<Button onPress={() => doLogout()} transparent>
+				<Button onPress={this.doLogout} transparent>
 					<Icon name='log-out' />
 				</Button>
 			)
 		}
 	};
+
+	onPressViewMap = () => {
+		this.props.navigation.push('MapaScreen', { equipamento: this.state.equipamento });
+	}
 
 
 	render() {
@@ -69,13 +74,13 @@ export default class Visualizar extends Component {
 							</Body>
 						</CardItem>
 						<CardItem>
-							<Button rounded warning>
+							<Button transparent warning>
 								<Text>Editar</Text>
 							</Button>
-							<Button rounded success>
+							<Button transparent success onPress={this.onPressViewMap}>
 								<Text>Ver no Mapa</Text>
 							</Button>
-							<Button rounded danger>
+							<Button transparent danger>
 								<Text>Deletar</Text>
 							</Button>
 						</CardItem>

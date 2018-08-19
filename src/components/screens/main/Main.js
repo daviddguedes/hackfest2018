@@ -1,25 +1,16 @@
 import React, { Component } from 'react';
-import { AsyncStorage, DeviceEventEmitter, FlatList, Alert } from 'react-native';
+import { AsyncStorage, DeviceEventEmitter, FlatList, Alert, RefreshControl } from 'react-native';
 
 import { Button, Icon, Text, Container, Fab } from 'native-base';
 import { ListItem } from 'react-native-elements'
 import Parse from 'parse/react-native';
 import EquipamentoList from '../equipamento/EquipamentoList';
 
+import Loader from './../../loader';
+
 const LogoTitle = (props) => {
    return <Text>Home</Text>
 }
-
-const list = [
-   {
-      id: 'wokiJUh7x',
-      name: 'Câmera'
-   },
-   {
-      id: 'plAK98Yhu',
-      name: 'Sensor de presença'
-   }
-]
 
 export default class Main extends Component {
 
@@ -29,8 +20,15 @@ export default class Main extends Component {
          user: null,
          dadosPessoais: null,
          dataSource: [],
-         active: true
+         active: true,
+         loading: false,
+         refreshing: false
       }
+   }
+
+   _onRefresh = () => {
+      this.setState({ refreshing: true });
+      this.refreshEquipamentos();
    }
 
    keyExtractor = (item, index) => item.id;
@@ -58,33 +56,82 @@ export default class Main extends Component {
 
    componentDidMount() {
       this.getUserData();
-      this.getDadosPessoais();
+      // this.getDadosPessoais();
+   }
+
+   refreshEquipamentos() {
+      return new Promise( async (resolve, reject) => {
+         this.setState({ dataSource: [] });
+         const user = await Parse.User.currentAsync();
+         if (user) {
+            const query = new Parse.Query("Equipamento");
+            query.equalTo("user", user);
+            query.find()
+               .then(equipamentos => {
+                  const lista = [];
+                  const size = equipamentos.length;
+                  for (let i = 0; i < size; i++) {
+                     lista.push({
+                        id: equipamentos[i].id,
+                        name: equipamentos[i].get('nome')
+                     });
+
+                     if (i === size - 1) {
+                        this.setState(prevState => ({
+                           dataSource: lista
+                        }));
+                        this.setState({ refreshing: false });
+                        resolve();
+                     }
+                  }
+
+               })
+               .catch(error => {
+                  this.setState({ refreshing: false });
+                  reject();
+                  alert('Erro buscando a lista de equipamentos');
+               });
+         } else {
+            reject();
+            this.setState({ refreshing: false });
+         };
+      });
    }
 
    async getEquipamentos() {
       const user = await Parse.User.currentAsync();
       if (user) {
+         this.setState({loading: true});
          const query = new Parse.Query("Equipamento");
          query.equalTo("user", user);
          query.find()
             .then(equipamentos => {
                const lista = [];
                const size = equipamentos.length;
-               for (let i = 0; i < size; i++) {
-                  lista.push({
-                     id: equipamentos[i].id,
-                     name: equipamentos[i].get('nome')
-                  });
+               if (size > 0) {
+                  for (let i = 0; i < size; i++) {
+                     lista.push({
+                        id: equipamentos[i].id,
+                        name: equipamentos[i].get('nome')
+                     });
 
-                  if (i === size - 1) {
-                     this.setState(prevState => ({
-                        dataSource: lista,
-                     }));
+                     if (i === size - 1) {
+                        this.setState(prevState => ({
+                           dataSource: lista
+                        }));
+                        this.setState({ loading: false });
+                     }
                   }
+               } else {
+                  this.setState({ loading: false });
                }
-
             })
-            .catch(error => alert('Erro buscando a lista de equipamentos'));
+            .catch(error => {
+               this.setState({ loading: false });
+               alert('Erro buscando a lista de equipamentos');
+            });
+      } else {
+         this.setState({ loading: false });
       };
    }
 
@@ -116,11 +163,13 @@ export default class Main extends Component {
    }
 
    static navigationOptions = ({ navigation }) => {
-      doLogout = async () => {
+      doLogout = () => {
          try {
-            const logout = await Parse.User.logOut();
-            DeviceEventEmitter.emit('userLoggedOut');
+            Parse.User.logOut().then(() => {
+               DeviceEventEmitter.emit('userLoggedOut');
+            });
          } catch (error) {
+            // DeviceEventEmitter.emit('userLoggedOut');
             alert('Erro ao fazer logout...');
          }
       }
@@ -128,7 +177,7 @@ export default class Main extends Component {
       return {
          headerTitle: <LogoTitle />,
          headerRight: (
-            <Button onPress={() => doLogout()} transparent>
+            <Button onPress={this.doLogout} transparent>
                <Icon name='log-out' />
             </Button>
          )
@@ -141,6 +190,12 @@ export default class Main extends Component {
       return (
          <Container>
             <FlatList
+               refreshControl={
+                  <RefreshControl
+                     refreshing={this.state.refreshing}
+                     onRefresh={this._onRefresh}
+                  />
+               }
                keyExtractor={this.keyExtractor}
                data={dataSource}
                renderItem={this.renderItem}
@@ -155,6 +210,8 @@ export default class Main extends Component {
                onPress={() => this.props.navigation.push('NovoEquipamento')}>
                <Icon name="ios-add-circle" />
             </Fab>
+
+            <Loader loading={this.state.loading} />
          </Container>
       );
    }
